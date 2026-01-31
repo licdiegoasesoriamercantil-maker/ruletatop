@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruleta de Premios</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #fbff00 0%, #fbff00 100%);
+            font-family: 'Arial', sans-serif;
+        }
+
+        .container {
+            text-align: center;
+            position: relative;
+        }
+
+        h1 {
+            color: white;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            font-size: 2.5em;
+        }
+
+        .wheel-container {
+            position: relative;
+            width: 500px;
+            height: 500px;
+            margin: 0 auto;
+        }
+
+        #wheelCanvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+
+        .pointer {
+            position: absolute;
+            top: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 80px;
+            z-index: 10;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+        }
+
+        .spin-button {
+            margin-top: 40px;
+            padding: 15px 40px;
+            font-size: 24px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-weight: bold;
+        }
+
+        .spin-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(0,0,0,0.4);
+        }
+
+        .spin-button:active {
+            transform: translateY(0);
+        }
+
+        .spin-button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result {
+            margin-top: 30px;
+            padding: 20px 40px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .result h2 {
+            margin: 0;
+            color: #764ba2;
+            font-size: 28px;
+        }
+
+        .result.show {
+            animation: popIn 0.5s ease-out;
+        }
+
+        @keyframes popIn {
+            0% {
+                transform: scale(0.5);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.1);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .wheel-container {
+                width: 350px;
+                height: 350px;
+            }
+            
+            h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎰 Ruleta TOP 🎰</h1>
+        
+        <div class="wheel-container">
+            <img src="puntero.png" alt="Puntero" class="pointer" id="pointer">
+            <canvas id="wheelCanvas" width="500" height="500"></canvas>
+        </div>
+
+        <button class="spin-button" id="spinButton">¡GIRAR!</button>
+
+        <div class="result">
+            <h2 id="resultText">¡Presiona el botón para girar!</h2>
+        </div>
+    </div>
+
+    <script>
+        // Premios duplicados
+        const prizes = [
+            "$200",
+            "Cambia tu descanso a fin",
+            "Tim Hortons",
+            "Sal una hora antes",
+            "Llega una hora tarde",
+            "$200",
+            "Cambia tu descanso a fin",
+            "Tim Hortons",
+            "Sal una hora antes",
+            "Llega una hora tarde"
+            
+        ];
+
+        // Colores para cada premio
+        const colors = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8',
+            '#FFD93D', '#6BCF7F', '#C77DFF', '#FF8AC3', '#95E1D3'
+        ];
+
+        const canvas = document.getElementById('wheelCanvas');
+        const ctx = canvas.getContext('2d');
+        const spinButton = document.getElementById('spinButton');
+        const resultText = document.getElementById('resultText');
+        const resultDiv = document.querySelector('.result');
+
+        let currentRotation = 0;
+        let isSpinning = false;
+
+        function drawWheel() {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = canvas.width / 2 - 10;
+            const sliceAngle = (2 * Math.PI) / prizes.length;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.rotate(currentRotation);
+
+            // Dibujar cada sección
+            for (let i = 0; i < prizes.length; i++) {
+                const startAngle = i * sliceAngle;
+                const endAngle = startAngle + sliceAngle;
+
+                // Dibujar sección
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.arc(0, 0, radius, startAngle, endAngle);
+                ctx.closePath();
+                ctx.fillStyle = colors[i];
+                ctx.fill();
+
+                // Borde blanco
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                // Dibujar texto
+                ctx.save();
+                ctx.rotate(startAngle + sliceAngle / 2);
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 16px Arial';
+                ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                ctx.shadowBlur = 3;
+                ctx.shadowOffsetX = 1;
+                ctx.shadowOffsetY = 1;
+
+                // Dividir texto largo en múltiples líneas
+                const text = prizes[i];
+                const words = text.split(' ');
+                if (words.length > 2) {
+                    ctx.fillText(words.slice(0, 2).join(' '), radius * 0.65, -8);
+                    ctx.fillText(words.slice(2).join(' '), radius * 0.65, 10);
+                } else {
+                    ctx.fillText(text, radius * 0.65, 0);
+                }
+
+                ctx.restore();
+            }
+
+            // Círculo central decorativo
+            ctx.beginPath();
+            ctx.arc(0, 0, 30, 0, 2 * Math.PI);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+            ctx.strokeStyle = '#764ba2';
+            ctx.lineWidth = 5;
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function spinWheel() {
+            if (isSpinning) return;
+
+            isSpinning = true;
+            spinButton.disabled = true;
+            resultText.textContent = '¡Girando...!';
+            resultDiv.classList.remove('show');
+
+            // Calcular rotación aleatoria (5-8 vueltas completas + ángulo aleatorio)
+            const spins = 5 + Math.random() * 3;
+            const extraRotation = Math.random() * 2 * Math.PI;
+            const totalRotation = spins * 2 * Math.PI + extraRotation;
+
+            const duration = 4000; // 4 segundos
+            const startTime = Date.now();
+            const startRotation = currentRotation;
+
+            function animate() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                // Función de easing para desaceleración suave
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+
+                currentRotation = startRotation + totalRotation * easeOut;
+                drawWheel();
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    // Normalizar rotación
+                    currentRotation = currentRotation % (2 * Math.PI);
+                    
+                    // Calcular premio ganador
+                    // El puntero está en la parte superior (ángulo 0)
+                    // Necesitamos calcular qué sección está bajo el puntero
+                    const sliceAngle = (2 * Math.PI) / prizes.length;
+                    
+                    // Ajustamos para que el puntero apunte al centro de la sección
+                    // Restamos medio ángulo de sección para compensar
+                    let adjustedRotation = (currentRotation + sliceAngle / 2) % (2 * Math.PI);
+                    if (adjustedRotation < 0) adjustedRotation += 2 * Math.PI;
+                    
+                    const winningIndex = Math.floor(adjustedRotation / sliceAngle) % prizes.length;
+
+                    // Mostrar resultado
+                    setTimeout(() => {
+                        resultText.textContent = `¡Ganaste!`;
+                        resultDiv.classList.add('show');
+                        isSpinning = false;
+                        spinButton.disabled = false;
+                    }, 500);
+                }
+            }
+
+            animate();
+        }
+
+        spinButton.addEventListener('click', spinWheel);
+
+        // Dibujar ruleta inicial
+        drawWheel();
+
+        // Manejar error si la imagen no existe
+        document.getElementById('pointer').onerror = function() {
+            // Si la imagen no existe, crear un puntero SVG simple
+            const pointer = document.getElementById('pointer');
+            pointer.style.display = 'none';
+            
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('width', '80');
+            svg.setAttribute('height', '80');
+            svg.setAttribute('viewBox', '0 0 80 80');
+            svg.style.position = 'absolute';
+            svg.style.top = '-40px';
+            svg.style.left = '50%';
+            svg.style.transform = 'translateX(-50%)';
+            svg.style.zIndex = '10';
+            svg.style.filter = 'drop-shadow(0 4px 6px rgba(0,0,0,0.3))';
+            
+            const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            polygon.setAttribute('points', '40,70 20,20 60,20');
+            polygon.setAttribute('fill', '#FFD700');
+            polygon.setAttribute('stroke', '#FFA500');
+            polygon.setAttribute('stroke-width', '3');
+            
+            svg.appendChild(polygon);
+            document.querySelector('.wheel-container').appendChild(svg);
+        };
+    </script>
+</body>
+</html>
